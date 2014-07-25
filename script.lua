@@ -6,6 +6,10 @@ st=0
 currow=0
 tokens={}
 gc={}
+tgc={}
+tc={}
+bpin={}
+wpin={}
 math.randomseed(os.time())
 
 function flip()
@@ -24,18 +28,29 @@ function decode()
 		tokens[num] = w
 	end
 	table.remove(tokens)
+	-- m = message type
+	-- 0 = handshake
+	-- 1 = board
+	-- 2 = curscreen sync
 	m=tokens[1]
 end
 
 function initLocalGame()
+	--gets rand color for pins
 	for i=0,3,1 do
 		gc[i]=math.random(0,5)
 	end
+	--clears user input
 	for j=0,7,1 do
 		c[j]={}
 		for i=0,3,1 do
 			c[j][i]=0
 		end
+	end
+	--clears pins
+	for i=0,7,1 do
+		bpin[i]=0
+		wpin[i]=0
 	end
 end
 
@@ -110,7 +125,7 @@ while (1) do
 					break
 				end
 			end
-			currow=currow+1
+			
 			if win == 1 then
 				done=0
 				currow=0
@@ -126,6 +141,31 @@ while (1) do
 					end
 					oldpad=pad
 					flip()
+				end
+			else
+				for i=0,3,1 do
+					tgc[i]=gc[i]
+				end
+				for i=0,3,1 do
+					tc[i]=c[currow][i]
+				end
+				--check correct
+				for i=0,3,1 do
+					if tc[i] == tgc[i] then
+						bpin[currow]=bpin[currow]+1
+						tgc[i]=-1
+						tc[i]=-2
+					end
+				end
+				--check possible
+				for i=0,3,1 do
+					for j=0,3,1 do
+						if tc[i] == tgc[j] then
+							wpin[currow]=wpin[currow]+1
+							tgc[j]=-1
+							tc[i]=-2
+						end
+					end
 				end
 			end
 			if currow == 8 then
@@ -145,7 +185,24 @@ while (1) do
 					flip()
 				end
 			end
-			--Add code to check if combination is correct!
+			currow=currow+1
+			if currow == 8 then
+				done=0
+				currow=0
+				initLocalGame()
+				oldpad=pad
+				while done==0 do
+					screen:print(0,0,"Game Over",w)
+					pad=Controls.read()
+					if pad:cross() and not oldpad:cross() then
+						oldpad=pad
+						done=1
+						break
+					end
+					oldpad=pad
+					flip()
+				end
+			end
 		end
 		oldpad=pad
 		
@@ -154,6 +211,9 @@ while (1) do
 		screen:print(0,8,"Selected pin: " .. st,w)
 		screen:print(0,16,"Color of pin: " .. c[currow][st],w)
 		screen:print(0,24,"Good Color  : " .. gc[st],w)
+		if currow > 0 then
+			screen:print(0,32,"Black Pins: " .. bpin[currow-1] .. " White pins: " .. wpin[currow-1],w)
+		end
 		flip()
 	end
 	--Multi-Player
