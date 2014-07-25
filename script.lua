@@ -1,9 +1,10 @@
 w=Color.new(255,255,255)
 mode=0
 s=0
-c={}
 st=0
 currow=0
+mp=0
+c={}
 tokens={}
 gc={}
 tgc={}
@@ -12,22 +13,7 @@ bpin={}
 wpin={}
 math.randomseed(os.time())
 
-px={}
-py={}
-px[0]=0
-px[1]=13
-px[2]=0
-px[3]=13
-py[0]=0
-py[1]=0
-py[2]=13
-py[3]=13
-
---Load sprites and background
-sp=Image.load("sprites.png")
-bg=Image.load("bg.png")
-
---init render functions
+--init render functions and loads images
 dofile("./functions/render.lua")
 
 function decode()
@@ -48,20 +34,30 @@ end
 
 function initLocalGame()
 	--gets rand color for pins
-	for i=0,3,1 do
-		gc[i]=math.random(0,5)
+	if mp == 0 then
+		for i=0,3,1 do
+			gc[i]=math.random(0,5)
+		end
 	end
 	--clears user input
 	for j=0,7,1 do
 		c[j]={}
 		for i=0,3,1 do
-			c[j][i]=0
+			c[j][i]=-1
 		end
 	end
 	--clears pins
 	for i=0,7,1 do
 		bpin[i]=0
 		wpin[i]=0
+	end
+	st=0
+	currow=0
+end
+
+function clearGC()
+	for i=0,3,1 do
+		gc[i]=-1
 	end
 end
 
@@ -70,7 +66,7 @@ while (1) do
 	while mode == 0 do
 		screen:print(0,0,"Select a mode:",w)
 		screen:print(8,8,"Single Player!",w)
-		screen:print(8,16,"Local Multiplayer!",w)
+		screen:print(8,16,"1 PSP multiplayer!",w)
 		screen:print(0,8+s*8,">",w)
 		pad=Controls.read()
 		if (pad:up() or pad:down()) and not (oldpad:up() or oldpad:down()) then
@@ -87,7 +83,10 @@ while (1) do
 				oldpad=pad
 				break
 			else
+				clearGC()
 				mode=2
+				mp=1
+				oldpad=pad
 				break
 			end
 		end
@@ -126,93 +125,95 @@ while (1) do
 		end
 		
 		if pad:cross() and not oldpad:cross() then
-			st=0
-			for i=0,3,1 do
-				var1=c[currow][i]
-				var2=gc[i]
-				if var1 == var2 then
-					win=1
+			for i = 0,3,1 do
+				if c[currow][i] > -1 then
+					filled=1
 				else
-					win=0
+					filled=0
 					break
 				end
 			end
-			
-			if win == 1 then
-				done=0
-				currow=0
-				initLocalGame()
-				oldpad=pad
-				while done==0 do
-					screen:print(0,0,"You are winner",w)
-					pad=Controls.read()
-					if pad:cross() and not oldpad:cross() then
-						oldpad=pad
-						done=1
+			if filled == 1 then
+				st=0
+				for i=0,3,1 do
+					var1=c[currow][i]
+					var2=gc[i]
+					if var1 == var2 then
+						win=1
+					else
+						win=0
 						break
 					end
+				end
+				
+				if win == 1 then
+					done=0
+					currow=0
+					initLocalGame()
 					oldpad=pad
-					flip()
-				end
-			else
-				for i=0,3,1 do
-					tgc[i]=gc[i]
-				end
-				for i=0,3,1 do
-					tc[i]=c[currow][i]
-				end
-				--check correct
-				for i=0,3,1 do
-					if tc[i] == tgc[i] then
-						bpin[currow]=bpin[currow]+1
-						tgc[i]=-1
-						tc[i]=-2
+					while done==0 do
+						renderWin()
+						pad=Controls.read()
+						if pad:cross() and not oldpad:cross() then
+							oldpad=pad
+							if mp == 1 then
+								mode=2
+								clearGC()
+								oldpad=pad
+							end
+							done=1
+							break
+						end
+						oldpad=pad
+						flip()
 					end
-				end
-				--check possible
-				for i=0,3,1 do
-					for j=0,3,1 do
-						if tc[i] == tgc[j] then
-							wpin[currow]=wpin[currow]+1
-							tgc[j]=-1
+				else
+					for i=0,3,1 do
+						tgc[i]=gc[i]
+					end
+					for i=0,3,1 do
+						tc[i]=c[currow][i]
+					end
+					--check correct
+					for i=0,3,1 do
+						if tc[i] == tgc[i] then
+							bpin[currow]=bpin[currow]+1
+							tgc[i]=-1
 							tc[i]=-2
 						end
 					end
-				end
-			end
-			if currow == 8 then
-				done=0
-				currow=0
-				initLocalGame()
-				oldpad=pad
-				while done==0 do
-					screen:print(0,0,"Game Over",w)
-					pad=Controls.read()
-					if pad:cross() and not oldpad:cross() then
-						oldpad=pad
-						done=1
-						break
+					--check possible
+					for i=0,3,1 do
+						for j=0,3,1 do
+							if tc[i] == tgc[j] then
+								wpin[currow]=wpin[currow]+1
+								tgc[j]=-1
+								tc[i]=-2
+							end
+						end
 					end
-					oldpad=pad
-					flip()
 				end
-			end
-			currow=currow+1
-			if currow == 8 then
-				done=0
-				currow=0
-				initLocalGame()
-				oldpad=pad
-				while done==0 do
-					screen:print(0,0,"Game Over",w)
-					pad=Controls.read()
-					if pad:cross() and not oldpad:cross() then
-						oldpad=pad
-						done=1
-						break
-					end
+				currow=currow+1
+				if currow == 8 then
+					done=0
+					currow=0
+					initLocalGame()
 					oldpad=pad
-					flip()
+					while done==0 do
+						renderGameOver()
+						pad=Controls.read()
+						if pad:cross() and not oldpad:cross() then
+							oldpad=pad
+							if mp == 1 then
+								mode=2
+								clearGC()
+							end
+							done=1
+							break
+						end
+						oldpad=pad
+						flip()
+					end
 				end
 			end
 		end
@@ -222,8 +223,56 @@ while (1) do
 		renderGame()
 		flip()
 	end
-	--Multi-Player
+	--Multi-Player (On 1 PSP)
 	while mode == 2 do
-	
+		pad=Controls.read()
+		--change color of selected tile!
+		if pad:up() and not oldpad:up() then
+			gc[st]=gc[st]-1
+			if gc[st] < 0 then
+				gc[st]=5
+			end
+		end
+		if pad:down() and not oldpad:down() then
+			gc[st]=gc[st]+1
+			if gc[st] > 5 then
+				gc[st]=0
+			end
+		end
+		
+		--change slected tile
+		if pad:left() and not oldpad:left() then
+			st=st-1
+			if st < 0 then
+				st=3
+			end
+		end
+		if pad:right() and not oldpad:right() then
+			st=st+1
+			if st > 3 then
+				st=0
+			end
+		end
+		if pad:cross() and not oldpad:cross() then
+			for i = 0,3,1 do
+				if gc[i] > -1 then
+					filled=1
+				else
+					filled=0
+					break
+				end
+			end
+			if filled == 1 then
+				initLocalGame()
+				mode=1
+				st=0
+				break
+			end
+		end
+		oldpad=pad
+		
+		--render
+		renderCodeSelect()
+		flip()
 	end
 end
