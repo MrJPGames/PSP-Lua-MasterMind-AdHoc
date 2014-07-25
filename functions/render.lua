@@ -14,6 +14,7 @@ sp=Image.load("sprites.png")
 bg=Image.load("bg.png")
 bgWin=Image.load("bgWin.png")
 bgGO=Image.load("bgGameOver.png")
+bgCS=Image.load("bgMakeCode.png")
 
 --Draws everything that was rendered to the screen
 function flip()
@@ -55,6 +56,19 @@ function renderGame()
 			end
 		end
 	end
+end
+
+function renderCodeSelect()
+	screen:blit(0,0,bgCS)
+	for i=0,3,1 do
+		if gc[i] < 3 and gc[i] > -1 then
+			screen:blit(68+i*91,25,sp,58+gc[i]*79,0,79,75,1)
+		else
+			screen:blit(68+i*91,25,sp,58+(gc[i]-3)*79,75,79,75,1)
+		end
+	end
+	screen:blit(78+91*st,10,sp,0,44,58,14,1)
+	screen:blit(78+91*st,101,sp,0,58,58,14,1)
 end
 
 function renderWin()
