@@ -1,0 +1,1 @@
+luaplayer script.lua
