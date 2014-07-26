@@ -1,3 +1,6 @@
+--This is "Out of Date" curently working in AdHocTest Brench.
+--This is the last stable build so use this if you want to play the game!
+
 w=Color.new(255,255,255)
 mode=0
 s=0
