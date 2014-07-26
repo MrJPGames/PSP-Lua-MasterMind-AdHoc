@@ -1,4 +1,5 @@
 w=Color.new(255,255,255)
+
 mode=0
 s=0
 st=0
@@ -28,8 +29,22 @@ function decode()
 	-- m = message type
 	-- 0 = handshake
 	-- 1 = board
-	-- 2 = curscreen sync
+	-- 2 = board sync
 	m=tokens[1]
+	if m == 0 then
+		hmsg=tokens[2]
+	end
+	if m == 1 then
+		for i=0,3,1  do
+			gc[i]=tokens[2+i]
+		end
+		br=1
+	end
+	if m == 2 then
+		for i=0,3,1 do
+			c[tokens[2]][i]=tokens[i+3]
+		end
+	end
 end
 
 function initLocalGame()
@@ -67,14 +82,17 @@ while (1) do
 		screen:print(0,0,"Select a mode:",w)
 		screen:print(8,8,"Single Player!",w)
 		screen:print(8,16,"1 PSP multiplayer!",w)
+		screen:print(8,24,"Ad-Hoc multiplayer!",w)
 		screen:print(0,8+s*8,">",w)
 		pad=Controls.read()
-		if (pad:up() or pad:down()) and not (oldpad:up() or oldpad:down()) then
-			if s == 0 then
-				s=1
-			else
-				s=0
-			end
+		
+		if pad:up() and not oldpad:up() then
+			s=s-1
+			if s < 0 then s=2 end
+		end
+		if pad:down() and not oldpad:down() then
+			s=s+1
+			if s > 2 then s=0 end
 		end
 		if pad:cross() then
 			if s == 0 then
@@ -82,12 +100,20 @@ while (1) do
 				mode=1
 				oldpad=pad
 				break
-			else
+			end
+			if s == 1 then
 				clearGC()
 				mode=2
 				mp=1
 				oldpad=pad
 				break
+			end
+			if s == 2 then
+				clearGC()
+				s=0
+				mp=2
+				oldpad=pad
+				mode=3
 			end
 		end
 		oldpad=pad
@@ -219,11 +245,15 @@ while (1) do
 		end
 		oldpad=pad
 		
+		--If Ad-Hoc send/recv board
+		if mp == 2 and t == "Client" then sendBoard() end
+		if mp == 2 and t == "Host" then recvBoard() end
+		
 		--Render
 		renderGame()
 		flip()
 	end
-	--Multi-Player (On 1 PSP)
+	--Multi-Player (On 1 PSP) (or Ad-HOC)
 	while mode == 2 do
 		pad=Controls.read()
 		--change color of selected tile!
@@ -263,10 +293,15 @@ while (1) do
 				end
 			end
 			if filled == 1 then
-				initLocalGame()
-				mode=1
-				st=0
-				break
+				if mp == 1 then
+					initLocalGame()
+					mode=1
+					st=0
+					break
+				end
+				if mp == 2 then
+					sendBoard()
+				end
 			end
 		end
 		oldpad=pad
@@ -275,4 +310,37 @@ while (1) do
 		renderCodeSelect()
 		flip()
 	end
+	
+	
+	
+	while mode == 3 do
+		screen:print(0,0,"Select:",w)
+		screen:print(8,8,"Host!",w)
+		screen:print(8,16,"Client!",w)
+		screen:print(0,8+s*8,">",w)
+		pad=Controls.read()
+		if (pad:up() or pad:down()) and not (oldpad:up() or oldpad:down()) then
+			if s == 0 then
+				s=1
+			else
+				s=0
+			end
+		end
+		if pad:cross() and not oldpad:cross() then
+		oldpad=pad
+			if s == 0 then
+				dofile("./functions/AdHocHost.lua")
+				startHost()
+				break
+			else
+				dofile("./functions/AdHocClient.lua")
+				startClient()
+				break
+			end
+		end
+		oldpad=pad
+		flip()
+	end
+	
+	
 end

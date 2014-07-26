@@ -1,1 +1,2 @@
 luaplayer script.lua
+pause
