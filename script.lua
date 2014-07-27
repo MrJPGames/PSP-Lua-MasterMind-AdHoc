@@ -1,7 +1,5 @@
---This is "Out of Date" curently working in AdHocTest Brench.
---This is the last stable build so use this if you want to play the game!
-
 w=Color.new(255,255,255)
+
 mode=0
 s=0
 st=0
@@ -31,8 +29,31 @@ function decode()
 	-- m = message type
 	-- 0 = handshake
 	-- 1 = board
-	-- 2 = curscreen sync
-	m=tokens[1]
+	-- 2 = board sync
+	if tokens[1] == "0" then
+		hmsg=tokens[2]
+	else
+		hmsh="O Hell NO"
+	end
+	if tokens[1] == "1" then
+		for i=0,3,1  do
+			gc[i]=tonumber(tokens[2+i])
+		end
+		br=1
+	end
+	if tokens[1] == "2" then
+		row=tonumber(tokens[2])
+		currow=row
+		for i=0,3,1 do
+			ti=3+i
+			if tokens[ti] ~= nil then
+				cnum=tonumber(tokens[ti])
+				c[row][i]=cnum
+			end
+		end
+	else
+		row="NONE"
+	end
 end
 
 function initLocalGame()
@@ -56,6 +77,9 @@ function initLocalGame()
 	end
 	st=0
 	currow=0
+	if mp == 2 and t == "Client" then currow=0 end
+	pad=Controls.read()
+	oldpad=pad
 end
 
 function clearGC()
@@ -70,14 +94,17 @@ while (1) do
 		screen:print(0,0,"Select a mode:",w)
 		screen:print(8,8,"Single Player!",w)
 		screen:print(8,16,"1 PSP multiplayer!",w)
+		screen:print(8,24,"Ad-Hoc multiplayer!",w)
 		screen:print(0,8+s*8,">",w)
 		pad=Controls.read()
-		if (pad:up() or pad:down()) and not (oldpad:up() or oldpad:down()) then
-			if s == 0 then
-				s=1
-			else
-				s=0
-			end
+		
+		if pad:up() and not oldpad:up() then
+			s=s-1
+			if s < 0 then s=2 end
+		end
+		if pad:down() and not oldpad:down() then
+			s=s+1
+			if s > 2 then s=0 end
 		end
 		if pad:cross() then
 			if s == 0 then
@@ -85,20 +112,31 @@ while (1) do
 				mode=1
 				oldpad=pad
 				break
-			else
+			end
+			if s == 1 then
 				clearGC()
 				mode=2
 				mp=1
 				oldpad=pad
 				break
 			end
+			if s == 2 then
+				clearGC()
+				s=0
+				mp=2
+				oldpad=pad
+				mode=3
+			end
 		end
 		oldpad=pad
 		flip()
 	end
-	--Single Player
+	
+	--Single Player (Board for 1 PSP MP and AdHoc MP)
 	while mode == 1 do
-		pad=Controls.read()
+		if not (mp == 2 and t == "Host") then
+			pad=Controls.read()
+		end
 		--change color of selected tile!
 		if pad:up() and not oldpad:up() then
 			c[currow][st]=c[currow][st]-1
@@ -128,6 +166,7 @@ while (1) do
 		end
 		
 		if pad:cross() and not oldpad:cross() then
+			wi=0
 			for i = 0,3,1 do
 				if c[currow][i] > -1 then
 					filled=1
@@ -150,6 +189,7 @@ while (1) do
 				end
 				
 				if win == 1 then
+					wi=1
 					done=0
 					currow=0
 					initLocalGame()
@@ -162,7 +202,11 @@ while (1) do
 							if mp == 1 then
 								mode=2
 								clearGC()
-								oldpad=pad
+							end
+							if mp == 2 then
+								clearGC()
+								getBoard()
+								break
 							end
 							done=1
 							break
@@ -196,7 +240,7 @@ while (1) do
 						end
 					end
 				end
-				currow=currow+1
+				if wi == 0 then currow=currow+1 end
 				if currow == 8 then
 					done=0
 					currow=0
@@ -211,6 +255,11 @@ while (1) do
 								mode=2
 								clearGC()
 							end
+							if mp == 2 then
+								clearGC()
+								getBoard()
+								break
+							end
 							done=1
 							break
 						end
@@ -222,12 +271,20 @@ while (1) do
 		end
 		oldpad=pad
 		
+		--If Ad-Hoc send/recv board
+		if mp == 2 and t == "Client" then sendBoard() end
+		if mp == 2 and t == "Host" then recvBoard() end
+		
 		--Render
 		renderGame()
 		flip()
 	end
-	--Multi-Player (On 1 PSP)
+	
+	--Multi-Player (On 1 PSP) (or Ad-HOC)
 	while mode == 2 do
+		--HOST sends please do getBoard()
+		if mp == 2 then Adhoc.send("0|Please come back!") end
+		
 		pad=Controls.read()
 		--change color of selected tile!
 		if pad:up() and not oldpad:up() then
@@ -266,10 +323,16 @@ while (1) do
 				end
 			end
 			if filled == 1 then
-				initLocalGame()
-				mode=1
-				st=0
-				break
+				if mp == 1 then
+					initLocalGame()
+					mode=1
+					st=0
+					break
+				end
+				if mp == 2 then
+					sendBoard()
+					break
+				end
 			end
 		end
 		oldpad=pad
@@ -278,4 +341,36 @@ while (1) do
 		renderCodeSelect()
 		flip()
 	end
+		
+	--Host/Client Select screen
+	while mode == 3 do
+		screen:print(0,0,"Select:",w)
+		screen:print(8,8,"Host!",w)
+		screen:print(8,16,"Client!",w)
+		screen:print(0,8+s*8,">",w)
+		pad=Controls.read()
+		if (pad:up() or pad:down()) and not (oldpad:up() or oldpad:down()) then
+			if s == 0 then
+				s=1
+			else
+				s=0
+			end
+		end
+		if pad:cross() and not oldpad:cross() then
+		oldpad=pad
+			if s == 0 then
+				dofile("./functions/AdHocHost.lua")
+				startHost()
+				break
+			else
+				dofile("./functions/AdHocClient.lua")
+				startClient()
+				break
+			end
+		end
+		oldpad=pad
+		flip()
+	end
+	
+	
 end
