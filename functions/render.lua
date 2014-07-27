@@ -40,8 +40,10 @@ function renderGame()
 			end
 		end
 	end
-	screen:blit(13+27*st,242-currow*30,sp,20,38,9,4,1)
-	screen:blit(13+27*st,263-currow*30,sp,20,34,9,4,1)
+	if not (mp == 2 and t == "Host") then
+		screen:blit(13+27*st,242-currow*30,sp,20,38,9,4,1)
+		screen:blit(13+27*st,263-currow*30,sp,20,34,9,4,1)
+	end
 	--Render B/W pins
 	--rows
 	for j=0,7,1 do
